@@ -3,7 +3,7 @@ import localforage from 'localforage';
 
 export interface Assumption {
   id: string;
-  sourceContext: string; /* Where it came from (e.g., problem, idea) */
+  sourceContext: string;
   text: string;
   status: 'fact' | 'guess' | 'unknown' | 'pending';
 }
@@ -21,7 +21,9 @@ export interface Stakeholder {
   id: string;
   name: string;
   need: string;
-  voiceReactions?: Record<string, string>; // Maps Idea ID to a simulated voice reaction
+  influenceLevel?: 'high' | 'medium' | 'low';
+  interestLevel?: 'high' | 'medium' | 'low';
+  voiceReactions?: Record<string, string>;
 }
 
 export interface Idea {
@@ -30,6 +32,7 @@ export interface Idea {
   score: number;
   why: string;
   pressureTest?: string;
+  versionId?: string; // For comparing ideas
 }
 
 export interface ContrastReview {
@@ -51,7 +54,7 @@ export interface Problem {
   nextAction?: string;
   smartChips?: string[];
   whys?: string[]; 
-  socraticQuestion?: string; // High-level coaching
+  socraticQuestion?: string;
   isSocraticAnswered?: boolean;
   socraticAnswer?: string;
 }
@@ -59,6 +62,22 @@ export interface Problem {
 export interface ProjectEvent {
   action: string;
   timestamp: number;
+}
+
+export interface Evidence {
+  id: string;
+  type: 'data' | 'quote' | 'observation' | 'research';
+  content: string;
+  source: string;
+  confidence: number;
+}
+
+export interface Comment {
+  id: string;
+  author: string;
+  text: string;
+  timestamp: number;
+  status?: 'pending' | 'resolved';
 }
 
 export interface Project {
@@ -73,12 +92,15 @@ export interface Project {
   assumptions: Assumption[];
   contradictions: Contradiction[];
   history: ProjectEvent[];
+  evidence: Evidence[];     // NEW
+  comments: Comment[];      // NEW
   overallScore: number;
+  version: number;          // NEW
 }
 
 localforage.config({
   name: 'midar_offline_db',
-  storeName: 'projects_v3',
+  storeName: 'projects_v4', // bumped version
   description: 'Midar Local Offline Intelligence Database'
 });
 
@@ -87,6 +109,7 @@ const DEFAULT_PROJECT: Project = {
   name: 'مبادرة نصير للتوزيع العادل للمياه',
   createdAt: Date.now(),
   updatedAt: Date.now(),
+  version: 1,
   stakeholders: [
     { id: 's1', name: 'المجتمعات الريفية', need: 'وصول مستدام وآمن للمياه النظيفة', voiceReactions: {} },
     { id: 's2', name: 'الشباب الفاعل', need: 'دور تنظيمي ومجتمعي ذو أثر مباشر', voiceReactions: {} }
@@ -96,6 +119,8 @@ const DEFAULT_PROJECT: Project = {
     score: 85.5,
     feedback: 'صياغة ممتازة ومباشرة تعكس ألماً حقيقياً. واضحة المسببات والتأثير.',
     gaps: [],
+    clarityScore: 85,
+    impactScore: 90,
     whys: [
       "لماذا تعاني المجتمعات؟ لأن البنية التحتية متهالكة",
       "لماذا تتهالك؟ لعدم وجود صيانة مجتمعية"
@@ -118,6 +143,8 @@ const DEFAULT_PROJECT: Project = {
   contradictions: [
     { id: 'ct1', source: 'تطبيق ذكي', target: 'المجتمعات الريفية', description: 'تحدي المعرفة الرقمية (Digital Divide) عند الفئات المستهدفة.', isResolved: false, resolution: '' }
   ],
+  evidence: [],
+  comments: [],
   history: [
     { action: 'ProjectCreated', timestamp: Date.now() - 100000 },
     { action: 'ProblemReframed', timestamp: Date.now() - 50000 }
@@ -139,7 +166,6 @@ export function useProjects() {
       const loaded: Project[] = [];
       
       if (keys.length === 0) {
-        // Seed default dataset if database is completely empty
         await localforage.setItem(DEFAULT_PROJECT.id, DEFAULT_PROJECT);
         loaded.push(DEFAULT_PROJECT);
       } else {
@@ -147,11 +173,13 @@ export function useProjects() {
           if (key.startsWith('proj_')) {
             const p = await localforage.getItem<Project>(key);
             if (p) {
-               // Migration for older data structures
                if (!p.assumptions) p.assumptions = [];
                if (!p.contradictions) p.contradictions = [];
                if (!p.history) p.history = [];
                if (!p.problem.whys) p.problem.whys = [];
+               if (!p.evidence) p.evidence = [];
+               if (!p.comments) p.comments = [];
+               if (!p.version) p.version = 1;
                loaded.push(p);
             }
           }
@@ -173,12 +201,15 @@ export function useProjects() {
       name,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      version: 1,
       stakeholders: [],
       problem: { text: '', score: 0, feedback: '', gaps: [], whys: [] },
       ideas: [],
       contrastReviews: [],
       assumptions: [],
       contradictions: [],
+      evidence: [],
+      comments: [],
       history: [{ action: 'ProjectCreated', timestamp: Date.now() }],
       overallScore: 0
     };
@@ -190,8 +221,7 @@ export function useProjects() {
   async function updateProject(id: string, updates: Partial<Project>) {
     const existing = await localforage.getItem<Project>(id);
     if (existing) {
-      const updated = { ...existing, ...updates, updatedAt: Date.now() };
-      // log history slightly
+      const updated = { ...existing, ...updates, updatedAt: Date.now(), version: existing.version + 1 };
       const actionNames = Object.keys(updates).map(k => `Updated_${k}`).join(',');
       updated.history = [...(existing.history || []), { action: actionNames, timestamp: Date.now() }];
       
@@ -207,4 +237,3 @@ export function useProjects() {
 
   return { projects, loading, createProject, updateProject, deleteProject };
 }
-
