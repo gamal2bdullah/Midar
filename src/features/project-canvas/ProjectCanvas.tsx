@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Check, Users, Target, Lightbulb, LayoutDashboard, Database, MessageSquare } from 'lucide-react';
+import { ShieldAlert, Beaker, LayoutDashboard, Database, Lightbulb, Target, Users, Check, ArrowLeft, MessageSquare } from 'lucide-react';
 import { Project } from '../../hooks/useStorage';
 import { cn } from '../../components/ui/shared';
 
@@ -10,12 +10,16 @@ import { ReportCenter } from '../report-center/ReportCenter';
 import { IdeationLab } from '../analysis/IdeationLab';
 import { EvidenceBoard } from '../evidence-board/EvidenceBoard';
 import { CollaborationPanel } from '../collaboration/CollaborationPanel';
+import { DecisionLog } from '../decision-log/DecisionLog';
+import { ExperimentBacklog } from '../experiment-backlog/ExperimentBacklog';
 
 const PIPELINE = [
   { id: 'stk', title: 'الأطراف', icon: Users },
   { id: 'prob', title: 'التحليل الإدراكي', icon: Target },
   { id: 'evd', title: 'جدار الأدلة', icon: Database },
   { id: 'ide', title: 'غرفة الأفكار', icon: Lightbulb },
+  { id: 'exp', title: 'محفظة التجارب', icon: Beaker },
+  { id: 'dec', title: 'سجل القرارات', icon: ShieldAlert },
   { id: 'rep', title: 'الوثيقة الحية', icon: LayoutDashboard }
 ];
 
@@ -32,7 +36,9 @@ export const ProjectCanvas = ({ project, updateProject, onClose }: { project: Pr
       case 1: return <ProblemAnalysis project={project} updateProject={updateProject} />;
       case 2: return <EvidenceBoard project={project} updateProject={updateProject} />;
       case 3: return <IdeationLab project={project} updateProject={updateProject} />;
-      case 4: return <ReportCenter project={project} />;
+      case 4: return <ExperimentBacklog project={project} updateProject={updateProject} />;
+      case 5: return <DecisionLog project={project} updateProject={updateProject} />;
+      case 6: return <ReportCenter project={project} />;
       default: return null;
     }
   }
@@ -70,15 +76,15 @@ export const ProjectCanvas = ({ project, updateProject, onClose }: { project: Pr
             const active = idx === currentStepIndex;
             const past = idx < currentStepIndex;
             return (
-              <div key={s.id} className="flex flex-col items-center gap-2 relative bg-transparent px-2">
+              <div key={s.id} onClick={() => setCurrentStepIndex(idx)} className="flex flex-col items-center gap-2 relative bg-transparent px-2 cursor-pointer group">
                 <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm border-2",
+                  "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm border-2 group-hover:scale-110",
                   active ? "bg-blue-50 border-blue-500 text-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.2)]" : 
-                  past ? "bg-gray-900 border-gray-900 text-white" : "bg-white border-gray-200 text-gray-400"
+                  past ? "bg-gray-900 border-gray-900 text-white" : "bg-white border-gray-200 text-gray-400 group-hover:border-gray-300 group-hover:text-gray-500"
                 )}>
                   {past ? <Check className="w-5 h-5" /> : <s.icon className="w-5 h-5" />}
                 </div>
-                <span className={cn("text-xs font-bold hidden md:block transition-colors", active ? "text-blue-600" : past ? "text-gray-900" : "text-gray-500")}>{s.title}</span>
+                <span className={cn("text-xs font-bold hidden md:block transition-colors", active ? "text-blue-600" : past ? "text-gray-900" : "text-gray-500 group-hover:text-gray-700")}>{s.title}</span>
               </div>
             )
           })}

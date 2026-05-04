@@ -140,6 +140,13 @@ export const ReportCenter = ({ project }: { project: Project }) => {
           </div>
 
           <div style={{ marginBottom: '32px' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginBottom: '16px', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>الملخص التنفيذي</h3>
+            <p style={{ color: '#475569', fontSize: '15px', lineHeight: '1.8' }}>
+              مشروع <strong>{project.name}</strong> يسعى لحل إشكالية مجتمعية/سوقية حصلت على تقييم وضوح بنسبة <strong>{analysis.problemClarity.score}%</strong>. يُمثل هذا التقرير حالة المشروع الراهنة من منظور الجاهزية والابتكار، حيث حقق المشروع متوسط جاهزية يبلغ <strong>{analysis.overallScore}%</strong>، ويظهر مستوى أثر اجتماعي مقدّر بـ <strong>{analysis.socialImpact.score}%</strong>.
+            </p>
+          </div>
+
+          <div style={{ marginBottom: '32px' }}>
             <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginBottom: '16px', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>تفصيل أبعاد الابتكار</h3>
             
             <ReportRow title="وضوح المشكلة" data={analysis.problemClarity} />
@@ -149,12 +156,40 @@ export const ReportCenter = ({ project }: { project: Project }) => {
             <ReportRow title="قابلية التنفيذ" data={analysis.feasibility} />
             <ReportRow title="الاستدامة" data={analysis.sustainability} />
             <ReportRow title="جاهزية التمويل" data={analysis.fundingReadiness} />
-            
-            <div style={{ padding: '16px', backgroundColor: analysis.executionRisk.level === 'High' ? '#fef2f2' : '#f0fdf4', border: '1px solid', borderColor: analysis.executionRisk.level === 'High' ? '#fca5a5' : '#bbf7d0', borderRadius: '8px', marginTop: '16px' }}>
-               <strong style={{ display: 'block', color: analysis.executionRisk.level === 'High' ? '#991b1b' : '#166534', marginBottom: '4px' }}>مخاطر التنفيذ الكلية: {analysis.executionRisk.level}</strong>
-               <p style={{ color: analysis.executionRisk.level === 'High' ? '#b91c1c' : '#15803d', fontSize: '14px', margin: 0 }}>{analysis.executionRisk.why}</p>
-            </div>
           </div>
+
+          <div style={{ marginBottom: '32px' }}>
+             <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginBottom: '16px', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>المخاطر والتحديات (Risks)</h3>
+             <div style={{ padding: '16px', backgroundColor: analysis.executionRisk.level === 'High' ? '#fef2f2' : '#f0fdf4', border: '1px solid', borderColor: analysis.executionRisk.level === 'High' ? '#fca5a5' : '#bbf7d0', borderRadius: '8px' }}>
+                <strong style={{ display: 'block', color: analysis.executionRisk.level === 'High' ? '#991b1b' : '#166534', marginBottom: '4px' }}>مخاطر التنفيذ الكلية: {analysis.executionRisk.level}</strong>
+                <p style={{ color: analysis.executionRisk.level === 'High' ? '#b91c1c' : '#15803d', fontSize: '14px', margin: 0 }}>{analysis.executionRisk.why}</p>
+             </div>
+          </div>
+
+          {(project.decisions && project.decisions.length > 0) && (
+            <div style={{ marginBottom: '32px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginBottom: '16px', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>سجل القرارات</h3>
+              {project.decisions.map(d => (
+                 <div key={d.id} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #e2e8f0' }}>
+                   <div style={{ fontWeight: 'bold', color: '#334155' }}>- {d.title} ({d.status === 'approved' ? 'مُعتمد' : d.status === 'rejected' ? 'مرفوض' : 'معلق'})</div>
+                   <div style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>{d.rationale}</div>
+                 </div>
+              ))}
+            </div>
+          )}
+
+          {(project.experiments && project.experiments.length > 0) && (
+            <div style={{ marginBottom: '32px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginBottom: '16px', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>التجارب والمقاييس (Next Actions)</h3>
+              {project.experiments.map(e => (
+                 <div key={e.id} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #e2e8f0' }}>
+                   <div style={{ fontWeight: 'bold', color: '#334155' }}>- {e.name} ({e.status})</div>
+                   <div style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}><strong>الفرضية: </strong>{e.hypothesis}</div>
+                   {e.result && <div style={{ color: '#0f172a', fontSize: '13px', marginTop: '4px' }}><strong>التعلم: </strong>{e.result}</div>}
+                 </div>
+              ))}
+            </div>
+          )}
           
           <div style={{ textAlign: 'center', marginTop: '48px', paddingTop: '24px', borderTop: '1px solid #e5e7eb', color: '#9ca3af', fontSize: '12px' }}>
             هذا التقرير يستند إلى تحليل نماذج اللغة المدعمة هيكلياً.

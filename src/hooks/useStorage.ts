@@ -80,6 +80,23 @@ export interface Comment {
   status?: 'pending' | 'resolved';
 }
 
+export interface Decision {
+  id: string;
+  title: string;
+  rationale: string;
+  status: 'pending' | 'approved' | 'rejected';
+  timestamp: number;
+}
+
+export interface Experiment {
+  id: string;
+  name: string;
+  hypothesis: string;
+  metric: string;
+  status: 'planned' | 'running' | 'completed' | 'failed';
+  result?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -94,6 +111,8 @@ export interface Project {
   history: ProjectEvent[];
   evidence: Evidence[];     // NEW
   comments: Comment[];      // NEW
+  decisions?: Decision[];
+  experiments?: Experiment[];
   overallScore: number;
   version: number;          // NEW
 }
@@ -179,6 +198,8 @@ export function useProjects() {
                if (!p.problem.whys) p.problem.whys = [];
                if (!p.evidence) p.evidence = [];
                if (!p.comments) p.comments = [];
+               if (!p.decisions) p.decisions = [];
+               if (!p.experiments) p.experiments = [];
                if (!p.version) p.version = 1;
                loaded.push(p);
             }
@@ -210,6 +231,8 @@ export function useProjects() {
       contradictions: [],
       evidence: [],
       comments: [],
+      decisions: [],
+      experiments: [],
       history: [{ action: 'ProjectCreated', timestamp: Date.now() }],
       overallScore: 0
     };

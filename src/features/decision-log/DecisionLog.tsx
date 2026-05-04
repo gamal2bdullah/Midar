@@ -1,0 +1,95 @@
+import React, { useState } from 'react';
+import { Project, Decision } from '../../hooks/useStorage';
+import { GlassCard, PrimaryButton } from '../../components/ui/shared';
+import { Check, X, Clock, ShieldAlert } from 'lucide-react';
+
+export const DecisionLog = ({ project, updateProject }: { project: Project, updateProject: any }) => {
+  const [title, setTitle] = useState('');
+  const [rationale, setRationale] = useState('');
+
+  const add = () => {
+    if(!title || !rationale) return;
+    const newDecision: Decision = {
+      id: `dec_${Date.now()}`,
+      title,
+      rationale,
+      status: 'pending',
+      timestamp: Date.now()
+    };
+    updateProject(project.id, { decisions: [newDecision, ...(project.decisions || [])] });
+    setTitle('');
+    setRationale('');
+  };
+
+  const updateDecisionStatus = (id: string, status: 'approved' | 'rejected') => {
+    const updated = (project.decisions || []).map(d => d.id === id ? { ...d, status } : d);
+    updateProject(project.id, { decisions: updated });
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="mb-6 border-b border-gray-100 pb-6">
+        <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2 mb-2">سجل القرارات</h2>
+        <p className="text-gray-500 text-sm font-medium">وثّق القرارات المصيرية للمشروع، أسبابها، وحالتها للمراجعة، لضمان ذاكرة مؤسسية وحكومة متماسكة للقرارات.</p>
+      </div>
+
+      <GlassCard className="p-6 bg-slate-50 border-slate-200">
+        <h3 className="font-bold text-slate-800 mb-4 text-sm flex items-center gap-2">
+          <ShieldAlert className="w-5 h-5 text-slate-500" />
+          توثيق قرار جديد
+        </h3>
+        <div className="space-y-4">
+          <input 
+            value={title} onChange={e=>setTitle(e.target.value)}
+            placeholder="عنوان القرار (مثل: الاعتماد على تطبيق موبايل)"
+            className="w-full text-sm font-bold bg-white border border-slate-200 outline-none rounded-xl p-3 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all placeholder-slate-400"
+          />
+          <textarea 
+            value={rationale} onChange={e=>setRationale(e.target.value)}
+            placeholder="الحيثيات والمبررات: لماذا اتخذنا هذا القرار؟ ما هي البدائل التي تم استبعادها؟"
+            className="w-full text-sm bg-white border border-slate-200 outline-none rounded-xl p-3 resize-y min-h-[100px] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all placeholder-slate-400"
+          />
+          <div className="flex justify-end">
+            <PrimaryButton onClick={add} disabled={!title || !rationale}>توثيق القرار</PrimaryButton>
+          </div>
+        </div>
+      </GlassCard>
+
+      <div className="space-y-4">
+        {(!project.decisions || project.decisions.length === 0) ? (
+          <div className="text-center text-slate-400 py-12 bg-white rounded-2xl border border-dashed border-slate-200">
+             <ShieldAlert className="w-8 h-8 mx-auto mb-3 opacity-20" />
+             <p className="text-sm font-bold">لم يتم تسجيل أي قرارات بعد.</p>
+          </div>
+        ) : (
+          project.decisions.map(d => (
+            <div key={d.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-5 items-start">
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-3">
+                  <h4 className="font-bold text-slate-900">{d.title}</h4>
+                  {d.status === 'pending' && <span className="text-[10px] uppercase font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-100 flex items-center gap-1"><Clock className="w-3 h-3"/> مقترح</span>}
+                  {d.status === 'approved' && <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 flex items-center gap-1"><Check className="w-3 h-3"/> مُعتمد</span>}
+                  {d.status === 'rejected' && <span className="text-[10px] uppercase font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-full border border-rose-100 flex items-center gap-1"><X className="w-3 h-3"/> مستبعد</span>}
+                </div>
+                <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">{d.rationale}</p>
+                <div className="text-xs text-slate-400 font-mono flex items-center gap-1 mt-2">
+                   تاريخ: {new Date(d.timestamp).toLocaleDateString()}
+                </div>
+              </div>
+              
+              <div className="flex flex-row md:flex-col gap-2 shrink-0 self-stretch justify-start items-center p-3 bg-slate-50/50 rounded-xl border border-slate-100">
+                 <span className="text-[10px] font-bold text-slate-400 mb-1 w-full text-center">المراجعة</span>
+                 <button onClick={() => updateDecisionStatus(d.id, 'approved')} className={`p-2 rounded-lg transition-colors border shadow-sm ${d.status === 'approved' ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-emerald-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-200'}`} title="اعتماد">
+                   <Check className="w-4 h-4" />
+                 </button>
+                 <button onClick={() => updateDecisionStatus(d.id, 'rejected')} className={`p-2 rounded-lg transition-colors border shadow-sm ${d.status === 'rejected' ? 'bg-rose-500 text-white border-rose-600' : 'bg-white text-rose-600 border-slate-200 hover:bg-rose-50 hover:border-rose-200'}`} title="رفض">
+                   <X className="w-4 h-4" />
+                 </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
