@@ -244,12 +244,16 @@ export function useProjects() {
   async function updateProject(id: string, updates: Partial<Project>) {
     const existing = await localforage.getItem<Project>(id);
     if (existing) {
-      const updated = { ...existing, ...updates, updatedAt: Date.now(), version: existing.version + 1 };
-      const actionNames = Object.keys(updates).map(k => `Updated_${k}`).join(',');
-      updated.history = [...(existing.history || []), { action: actionNames, timestamp: Date.now() }];
+      const updated = { ...existing, ...updates, updatedAt: Date.now(), version: (existing.version || 1) + 1 };
+      const actionNames = Object.keys(updates).filter(k => k !== 'updatedAt' && k !== 'version').map(k => `Updated_${k}`).join(',');
+      if (actionNames) {
+        updated.history = [...(existing.history || []), { action: actionNames, timestamp: Date.now() }];
+      }
       
       await localforage.setItem(id, updated);
-      await initDB();
+      
+      // Update local state without reloading everything
+      setProjects(prev => prev.map(p => p.id === id ? updated : p));
     }
   }
 

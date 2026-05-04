@@ -69,7 +69,12 @@ export const CollaborationPanel = ({ project, updateProject, isOpen, onClose }: 
                            {c.status === 'resolved' ? (
                               <span className="text-[10px] uppercase tracking-wider font-bold bg-green-100 text-green-700 px-2 py-1 rounded-md">مُعتمد</span>
                            ) : (
-                              <span className="text-[10px] uppercase tracking-wider font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded-md">قيد الانتظار</span>
+                              <button onClick={() => {
+                                const newComments = project.comments?.map(x => x.id === c.id ? { ...x, status: 'resolved' as const } : x) || [];
+                                updateProject(project.id, { comments: newComments });
+                              }} className="text-[10px] uppercase tracking-wider font-bold bg-amber-50 border border-amber-200 text-amber-700 px-2 py-1 rounded-md hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors shadow-sm">
+                                اعتماد؟
+                              </button>
                            )}
                         </div>
                         <p className="text-sm text-[#334155] leading-relaxed">{c.text}</p>
