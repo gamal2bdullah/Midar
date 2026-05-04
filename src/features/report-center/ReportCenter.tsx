@@ -7,10 +7,32 @@ import { FileDown, Target, Lightbulb, AlertTriangle, Coins, Target as TargetIcon
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
+import React, { useRef, useState, useEffect } from 'react';
+import { Project } from '../../hooks/useStorage';
+import { InsightEngine } from '../../lib/analysis/InsightEngine';
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { GlassCard } from '../../components/ui/shared';
+import { FileDown, Target, Zap, ShieldAlert, Sparkles, Target as TargetIcon } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
+import { GeminiOrchestrator } from '../../lib/ai-engine';
+
 export const ReportCenter = ({ project }: { project: Project }) => {
   const printRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState('');
+  const [geminiInsight, setGeminiInsight] = useState<string>('');
+  const [loadingInsight, setLoadingInsight] = useState(false);
+
+  useEffect(() => {
+    async function fetchInsight() {
+      setLoadingInsight(true);
+      const insight = await GeminiOrchestrator.synthesizeInsights(project);
+      setGeminiInsight(insight);
+      setLoadingInsight(false);
+    }
+    fetchInsight();
+  }, [project]);
 
   const analysis = InsightEngine.analyzeProject(project);
 
@@ -68,19 +90,34 @@ export const ReportCenter = ({ project }: { project: Project }) => {
     <div className="space-y-6 relative pb-10 font-sans text-right" dir="rtl">
       <div className="flex justify-between items-end mb-6">
         <div>
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-1 tracking-tight">مركز التقارير (ذكاء مفسّر)</h2>
-          <p className="text-gray-500 font-sans text-sm">تحليل شامل بأبعاد متعددة يوضح قوة مشروعك وجاهزيته.</p>
+          <h2 className="text-3xl font-extrabold text-slate-900 mb-1 tracking-tight">مركز التقارير (ذكاء مفسّر)</h2>
+          <p className="text-slate-500 font-sans text-sm">تحليل شامل بأبعاد متعددة يوضح قوة مشروعك وجاهزيته.</p>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <button onClick={exportPDF} disabled={isExporting} className="flex items-center gap-2 bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-xl font-bold transition-all shadow-sm text-sm">
+          <button onClick={exportPDF} disabled={isExporting} className="flex items-center gap-2 bg-slate-900 hover:bg-black text-white px-6 py-3 rounded-xl font-bold transition-all shadow-sm text-sm">
             <FileDown className="w-5 h-5"/> {isExporting ? 'جاري الاستخراج...' : 'تصدير التقرير التنفيذي'}
           </button>
           {exportError && <span className="text-rose-600 text-xs font-bold">{exportError}</span>}
         </div>
       </div>
 
-      <GlassCard className="mb-8 p-8 shadow-sm">
-        <h3 className="font-bold text-gray-900 mb-6 text-xl">رادار الجاهزية والابتكار</h3>
+      {loadingInsight ? (
+        <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100 flex items-center gap-3 animate-pulse">
+           <Sparkles className="w-5 h-5 text-blue-500" />
+           <span className="text-sm font-bold text-blue-800">جاري صياغة التقرير الإستراتيجي الذكي...</span>
+        </div>
+      ) : geminiInsight ? (
+        <div className="p-8 bg-gradient-to-l from-indigo-900 to-slate-900 rounded-2xl text-white shadow-xl relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+           <h3 className="font-bold text-indigo-200 mb-4 flex items-center gap-2 relative z-10"><Sparkles className="w-5 h-5"/> التوليف الاستراتيجي (AI Synthesis)</h3>
+           <div className="relative z-10 text-sm leading-relaxed space-y-4 font-medium text-slate-100 whitespace-pre-wrap">
+              {geminiInsight}
+           </div>
+        </div>
+      ) : null}
+
+      <GlassCard className="mb-8 p-8 shadow-sm mt-6">
+        <h3 className="font-bold text-slate-900 mb-6 text-xl">رادار الجاهزية والابتكار</h3>
         <div className="flex flex-col md:flex-row gap-8 items-center cursor-crosshair">
             <div className="h-72 w-full md:w-1/2 group">
                 <ResponsiveContainer width="100%" height="100%">
@@ -115,7 +152,7 @@ export const ReportCenter = ({ project }: { project: Project }) => {
       </GlassCard>
 
       <div className="grid grid-cols-1 gap-6">
-         <h3 className="font-bold text-gray-900 text-xl border-b pb-2">الذكاء المفسّر (Explainable AI)</h3>
+         <h3 className="font-bold text-slate-900 text-xl border-b pb-2">الذكاء المفسّر (Explainable AI)</h3>
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ExplainItem title="وضوح المشكلة" item={analysis.problemClarity} />
             <ExplainItem title="جودة الافتراضات" item={analysis.assumptionQuality} />
@@ -138,6 +175,15 @@ export const ReportCenter = ({ project }: { project: Project }) => {
              </div>
              <div style={{ fontSize: '32px', fontWeight: '900', color: '#2563eb' }}>{analysis.overallScore} / 100</div>
           </div>
+
+          {geminiInsight && (
+            <div style={{ marginBottom: '32px', padding: '24px', backgroundColor: '#eef2ff', borderRadius: '12px', border: '1px solid #c7d2fe' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#312e81', marginBottom: '16px' }}>التوليف الاستراتيجي (AI Executive Synthesis)</h3>
+              <p style={{ color: '#3730a3', fontSize: '14px', lineHeight: '1.8', whiteSpace: 'pre-wrap' }}>
+                {geminiInsight}
+              </p>
+            </div>
+          )}
 
           <div style={{ marginBottom: '32px' }}>
             <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a', marginBottom: '16px', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>الملخص التنفيذي</h3>
@@ -201,12 +247,12 @@ export const ReportCenter = ({ project }: { project: Project }) => {
 };
 
 const ExplainItem = ({ title, item }: { title: string, item: { score: number, why: string } }) => (
-  <div className="bg-gray-50 border border-gray-100 p-4 rounded-xl flex flex-col justify-between">
+  <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl flex flex-col justify-between">
     <div className="flex justify-between items-center mb-2">
-      <span className="font-bold text-gray-800">{title}</span>
+      <span className="font-bold text-slate-800">{title}</span>
       <span className="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded text-sm">{item.score}/100</span>
     </div>
-    <p className="text-sm text-gray-500 font-sans leading-relaxed">{item.why}</p>
+    <p className="text-sm text-slate-500 font-sans leading-relaxed">{item.why}</p>
   </div>
 );
 
@@ -235,3 +281,4 @@ const ReportRow = ({ title, data }: { title: string, data: any }) => (
     <div style={{ flex: 1, color: '#64748b', fontSize: '13px', lineHeight: '1.5' }}>{data.why}</div>
   </div>
 );
+

@@ -3,13 +3,62 @@
  * Advanced semantic pattern recognition, Transformers.js inference, and insight generation
  */
 import { pipeline, env } from '@huggingface/transformers';
+import { GoogleGenAI } from '@google/genai';
 import { Project, Idea, Problem, ContrastReview } from '../hooks/useStorage';
 
 // Disable sending models to background threads inside limited memory web runtimes to avoid hanging
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
+let gemini: GoogleGenAI | null = null;
+try {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (apiKey && apiKey !== 'undefined') {
+    gemini = new GoogleGenAI({ apiKey });
+  }
+} catch (e) {
+  console.warn('Gemini API key not found, AI features will degrade gracefully.');
+}
+
+export class GeminiOrchestrator {
+  static async synthesizeInsights(project: Project): Promise<string> {
+    if (!gemini) {
+      return "الذكاء الاصطناعي معطل حالياً لعدم توفر مفتاح API. يرجى توفير مفتاح Gemini لتفعيل هذه الميزة.";
+    }
+    try {
+      const prompt = `
+        You are an elite Project Intelligence OS. Analyze the following project structured data and provide a highly critical, executive-level synthesis of its current state, hidden risks, and strongest validation paths. Give structural feedback, not just encouragement.
+        
+        Project Name: ${project.name}
+        Problem: ${project.problem.text}
+        
+        Ideas proposed:
+        ${project.ideas.map(i => "- " + i.text).join('\n')}
+        
+        Stakeholders:
+        ${project.stakeholders.map(s => "- " + s.name + ": " + s.need).join('\n')}
+        
+        Current evidence strength: ${project.evidences?.length || 0} pieces of evidence.
+        
+        Provide a 3-paragraph executive brief detailing:
+        1. Core strategic tension.
+        2. Hidden assumptions that need validation.
+        3. The most critical experiment to run tomorrow.
+      `;
+      const response = await gemini.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+      });
+      return response.text || "لم يتم استخراج رؤى بنجاح.";
+    } catch(e) {
+      console.warn("Gemini Orchestration failed:", e);
+      return "فشل الاتصال بمحرك التحليل العميق. يبدو أن هناك مشكلة في مفتاح API أو الشبكة.";
+    }
+  }
+}
+
 class CognitiveEngine {
+
   static instance: any = null;
   static classifier: any = null;
   static ready = false;
