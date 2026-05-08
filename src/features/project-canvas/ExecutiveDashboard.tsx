@@ -1,11 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Project } from '../../hooks/useStorage';
 import { GlassCard } from '../../components/ui/shared';
 import { AICard } from '../../components/ui/AICard';
-import { Target, Lightbulb, Users, ShieldAlert, Beaker, CheckCircle2 } from 'lucide-react';
+import { Target, Lightbulb, Users, ShieldAlert, Beaker, CheckCircle2, Sparkles } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { GeminiOrchestrator } from '../../lib/ai-engine';
 
 export const ExecutiveDashboard = ({ project, updateProject }: { project: Project, updateProject: any }) => {
+  const [insight, setInsight] = useState<string>('');
+  const [loadingInsight, setLoadingInsight] = useState(false);
+
+  useEffect(() => {
+    async function fetchInsights() {
+      setLoadingInsight(true);
+      const res = await GeminiOrchestrator.synthesizeInsights(project);
+      setInsight(res);
+      setLoadingInsight(false);
+    }
+    fetchInsights();
+  }, [project]);
 
   const totalScore = project.overallScore || 0;
   
@@ -93,9 +106,15 @@ export const ExecutiveDashboard = ({ project, updateProject }: { project: Projec
           <AICard 
              title="التوجيه الذكي (AI Insight)"
              content={
-               <p className="text-sm">
-                 بناءً على المعطيات الحالية، نقترح البدء باختبار <strong>محفظة التجارب</strong> للتحقق من الفرضيات الأساسية قبل استهلاك مزيد من الموارد. مؤشر الجاهزية يشير إلى الحاجة لتحسين "جدار الأدلة" لرفع الموثوقية العامة.
-               </p>
+               loadingInsight ? (
+                 <p className="text-sm animate-pulse text-slate-500 flex items-center gap-2">
+                   <Sparkles className="w-4 h-4" /> جاري صياغة التقرير الاستراتيجي...
+                 </p>
+               ) : insight ? (
+                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{insight}</p>
+               ) : (
+                 <p className="text-sm">لا يوجد توجيه ذكي متوفر حالياً.</p>
+               )
              }
              type="info"
           />

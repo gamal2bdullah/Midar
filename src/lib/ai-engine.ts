@@ -10,21 +10,37 @@ import { Project, Idea, Problem, ContrastReview } from '../hooks/useStorage';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
-let gemini: GoogleGenAI | null = null;
-try {
-  const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-  if (apiKey && apiKey !== 'undefined') {
-    gemini = new GoogleGenAI({ apiKey });
+// Direct calls removed for security. Uses proxy.
+export async function generateViaProxy(prompt: string, options?: { systemInstruction?: string, responseSchema?: any }): Promise<string> {
+  try {
+    const res = await fetch('/api/ai/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        prompt, 
+        systemInstruction: options?.systemInstruction, 
+        responseSchema: options?.responseSchema 
+      })
+    });
+    
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      // If we receive an HTML error page from a proxy/load balancer
+      throw new Error(`Server returned a non-JSON response. Status: ${res.status}`);
+    }
+    
+    if (!res.ok) throw new Error(data.error || 'Unknown AI error');
+    return data.text || '';
+  } catch (error) {
+    console.error('AI Proxy Error:', error);
+    throw error;
   }
-} catch (e) {
-  console.warn('Gemini API key not found, AI features will degrade gracefully.');
 }
 
 export class GeminiOrchestrator {
   static async simulateScenarios(project: Project): Promise<{id: string, title: string, risk: string, mitigation: string}[]> {
-    if (!gemini) {
-      return [];
-    }
     try {
       const prompt = `
         You are an elite Pre-Mortem Scenario Simulator. Given this project plan, generate 3 severe, highly specific, and realistic failure scenarios (collapse scenarios) that could destroy this project. Output MUST be valid JSON array of objects with schema:
@@ -34,25 +50,18 @@ export class GeminiOrchestrator {
         Problem: ${project.problem.text}
         Ideas: ${project.ideas.map(i => i.text).join(' ')}
       `;
-      const response = await gemini.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt
-      });
-      const text = response.text || "[]";
-      // ensure we just get the json array
+      const text = await generateViaProxy(prompt);
       const matches = text.match(/\\[[\\s\\S]*\\]/);
       const jsonStr = matches ? matches[0] : "[]";
       return JSON.parse(jsonStr) as {id: string, title: string, risk: string, mitigation: string}[];
-    } catch(e) {
+    } catch(e: any) {
       console.warn("Scenario simulation failed:", e);
+      if (e.message && e.message.includes("مفتاح Gemini API غير صالح")) return []; // fallback gracefully
       return [];
     }
   }
 
   static async critiqueDecision(decisionText: string, rationale: string, projectContext: string): Promise<string> {
-    if (!gemini) {
-      return "الاعتماد المفرط على حدس الفريق دون أدلة قد يؤدي لمخاطر خفية.";
-    }
     try {
       const prompt = `
         You are an elite Staff Engineer / Product Critic.
@@ -62,18 +71,14 @@ export class GeminiOrchestrator {
 
         Provide a very brief (2-3 sentences max) sharp critique playing devil's advocate. Expose assumptions. If the decision contradicts the "Evidence Base" (or if there is no evidence), aggressively highlight that lack of traceability. What is the biggest hidden risk? Output in Arabic.
       `;
-      const response = await gemini.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt
-      });
-      return response.text || "قد يكون هذا القرار متسرعاً ويحتاج لتدقيق إضافي.";
-    } catch(e) {
+      return await generateViaProxy(prompt) || "قد يكون هذا القرار متسرعاً ويحتاج لتدقيق إضافي.";
+    } catch(e: any) {
+      if (e.message && e.message.includes("مفتاح Gemini API غير صالح")) return e.message;
       return "لا يمكن تقييم القرار حالياً بسبب انقطاع الاتصال بخادم الذكاء الاصطناعي.";
     }
   }
 
   static async assessExperiment(hypothesis: string, metric: string): Promise<string> {
-    if (!gemini) return "تقييم التجربة معطل لغياب مفتاح API.";
     try {
       const prompt = `
         You are an elite Growth Hacker / Experimentation Lead.
@@ -83,20 +88,14 @@ export class GeminiOrchestrator {
 
         Provide a very brief (2 sentences) critique on whether this metric actually proves the hypothesis or if it's a vanity metric. If it's weak, suggest a harder metric. Output in Arabic.
       `;
-      const response = await gemini.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt
-      });
-      return response.text || "لا يمكن استخلاص تقييم الآن.";
-    } catch(e) {
+      return await generateViaProxy(prompt) || "لا يمكن استخلاص تقييم الآن.";
+    } catch(e: any) {
+      if (e.message && e.message.includes("مفتاح Gemini API غير صالح")) return e.message;
       return "تعذر تقييم التجربة.";
     }
   }
 
   static async analyzeEvidence(content: string, context: string): Promise<string> {
-    if (!gemini) {
-      return "التحليل الذكي معطل لعدم توفر مفتاح API.";
-    }
     try {
       const prompt = `
         You are an elite Intelligence Analyst processing raw evidence for a strategic project.
@@ -105,20 +104,14 @@ export class GeminiOrchestrator {
 
         Provide a very brief (2 sentences) insight on how this evidence validates or invalidates the core project context. Be sharp and critical. Output in Arabic.
       `;
-      const response = await gemini.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt
-      });
-      return response.text || "تم تسجيل الدليل بدون تعليق تحليلي إضافي.";
-    } catch(e) {
+      return await generateViaProxy(prompt) || "تم تسجيل الدليل بدون تعليق تحليلي إضافي.";
+    } catch(e: any) {
+      if (e.message && e.message.includes("مفتاح Gemini API غير صالح")) return e.message;
       return "فشل التحليل الذكي للبيانات.";
     }
   }
 
   static async synthesizeInsights(project: Project): Promise<string> {
-    if (!gemini) {
-      return "الذكاء الاصطناعي معطل حالياً لعدم توفر مفتاح API. يرجى توفير مفتاح Gemini لتفعيل هذه الميزة.";
-    }
     try {
       const prompt = `
         You are an elite Project Intelligence OS. Analyze the following project structured data and provide a highly critical, executive-level synthesis of its current state, hidden risks, and strongest validation paths. Give structural feedback, not just encouragement.
@@ -139,14 +132,11 @@ export class GeminiOrchestrator {
         2. Hidden assumptions that need validation.
         3. The most critical experiment to run tomorrow.
       `;
-      const response = await gemini.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt
-      });
-      return response.text || "لم يتم استخراج رؤى بنجاح.";
-    } catch(e) {
+      return await generateViaProxy(prompt) || "لم يتم استخراج رؤى بنجاح.";
+    } catch(e: any) {
       console.warn("Gemini Orchestration failed:", e);
-      return "فشل الاتصال بمحرك التحليل العميق. يبدو أن هناك مشكلة في مفتاح API أو الشبكة.";
+      if (e.message && e.message.includes("مفتاح Gemini API غير صالح")) return e.message;
+      return "فشل الاتصال. تأكد من إعداد المفتاح.";
     }
   }
 }

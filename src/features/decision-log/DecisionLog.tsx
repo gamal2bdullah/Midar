@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Project, Decision } from '../../hooks/useStorage';
 import { GlassCard, PrimaryButton } from '../../components/ui/shared';
-import { Check, X, Clock, ShieldAlert, Sparkles } from 'lucide-react';
-import { GeminiOrchestrator } from '../../lib/ai-engine';
+import { Check, X, Clock, ShieldAlert, Sparkles, BrainCircuit } from 'lucide-react';
+import { MultiAgentOrchestrator } from '../../lib/agents/Pipeline';
 
 export const DecisionLog = ({ project, updateProject }: { project: Project, updateProject: any }) => {
   const [title, setTitle] = useState('');
@@ -30,14 +30,37 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
     // Generate critique asynchronously
     setIsCritiquing(newId);
     
-    // Inject available evidence to give AI a sense of traceability
-    const evidenceText = (project.evidence || []).map(e => `- ${e.type}: ${e.content}`).join('\n');
-    const context = `Problem: ${project.problem.text || project.name}\nEvidence Base:\n${evidenceText || 'No hard evidence available.'}`;
+    const pipelineContext = {
+      project,
+      history: project.history.map(h => h.action),
+      evidenceData: project.evidence
+    };
     
-    const critique = await GeminiOrchestrator.critiqueDecision(newDecision.title, newDecision.rationale, context);
+    const decisionTopic = `Decision: ${newDecision.title}\nRationale: ${newDecision.rationale}`;
+    const aiResults = await MultiAgentOrchestrator.executeDecisionPipeline(pipelineContext, decisionTopic);
     
-    // Update the specific decision with critique
-    const updatedDecisions = currentDecisions.map(d => d.id === newId ? { ...d, criticism: critique } : d);
+    // Process results into decision
+    const updatedDecision: Decision = { 
+      ...newDecision, 
+    };
+
+    if (aiResults?.synthesis) {
+      updatedDecision.criticism = aiResults.synthesis.executiveSummary || aiResults.critique?.weaknesses?.join('\n');
+      updatedDecision.expectedOutcomes = aiResults.synthesis.expectedOutcomes;
+    }
+    
+    if (aiResults?.critique) {
+      updatedDecision.risks = aiResults.critique.weaknesses;
+      updatedDecision.criticism = (updatedDecision.criticism ? updatedDecision.criticism + '\n\n' : '') + 
+        `Risk Level: ${aiResults.critique.riskLevel} | Confidence: ${aiResults.critique.confidenceScore}%\n` + 
+        (aiResults.critique.counterArguments?.map((c: string) => `- ${c}`).join('\n') || '');
+    }
+
+    if (aiResults?.research) {
+      updatedDecision.linkedEvidenceIds = aiResults.research.foundEvidence;
+    }
+
+    const updatedDecisions = currentDecisions.map(d => d.id === newId ? updatedDecision : d);
     updateProject(project.id, { decisions: updatedDecisions });
     setIsCritiquing(null);
   };
@@ -50,8 +73,8 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="mb-6 border-b border-gray-100 pb-6">
-        <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2 mb-2">سجل القرارات</h2>
-        <p className="text-gray-500 text-sm font-medium">وثّق القرارات المصيرية للمشروع، أسبابها، وحالتها للمراجعة، لضمان ذاكرة مؤسسية وحكومة متماسكة للقرارات.</p>
+        <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2 mb-2">الذكاء في اتخاذ القرار</h2>
+        <p className="text-gray-500 text-sm font-medium">وثّق القرارات المصيرية للمشروع، أسبابها، وحالتها للمراجعة، لضمان ذاكرة مؤسسية وحكومة متماسكة للقرارات. سيدرس فريق العملاء الوكلاء (الاستراتيجي፣ الباحث، والناقد) قرارك لتوفير رؤية 360 درجة.</p>
       </div>
 
       <GlassCard className="p-6 bg-slate-50 border-slate-200">
@@ -63,15 +86,15 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
           <input 
             value={title} onChange={e=>setTitle(e.target.value)}
             placeholder="عنوان القرار (مثل: الاعتماد على تطبيق موبايل)"
-            className="w-full text-sm font-bold bg-white border border-slate-200 outline-none rounded-xl p-3 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all placeholder-slate-400"
+            className="w-full text-sm font-bold bg-white border border-slate-200 outline-none rounded-xl p-3 focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all placeholder-slate-400"
           />
           <textarea 
             value={rationale} onChange={e=>setRationale(e.target.value)}
             placeholder="الحيثيات والمبررات: لماذا اتخذنا هذا القرار؟ ما هي البدائل التي تم استبعادها؟"
-            className="w-full text-sm bg-white border border-slate-200 outline-none rounded-xl p-3 resize-y min-h-[100px] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all placeholder-slate-400"
+            className="w-full text-sm bg-white border border-slate-200 outline-none rounded-xl p-3 resize-y min-h-[100px] focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all placeholder-slate-400"
           />
           <div className="flex justify-end">
-            <PrimaryButton onClick={add} disabled={!title || !rationale}>توثيق القرار</PrimaryButton>
+            <PrimaryButton onClick={add} disabled={!title || !rationale}>توثيق القرار وتحليل AI</PrimaryButton>
           </div>
         </div>
       </GlassCard>
@@ -95,15 +118,38 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
                 <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">{d.rationale}</p>
                 
                 {(d.criticism || isCritiquing === d.id) && (
-                  <div className="mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl relative">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Sparkles className="w-4 h-4 text-indigo-500" />
-                      <span className="text-xs font-bold text-indigo-800">نقد الذكاء الاصطناعي (Devil's Advocate)</span>
+                  <div className="mt-3 p-4 bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 rounded-xl relative space-y-3">
+                    <div className="flex items-center gap-2 mb-1 border-b border-indigo-100/50 pb-2">
+                      <BrainCircuit className="w-4 h-4 text-indigo-500" />
+                      <span className="text-xs font-bold text-indigo-800">تحليل فريق الوكلاء الذكي (Multi-Agent Synthesis)</span>
                     </div>
                     {isCritiquing === d.id ? (
-                      <p className="text-sm text-indigo-500 animate-pulse font-medium">جاري فحص المخاطر الخفية للقرار...</p>
+                      <p className="text-sm text-indigo-500 animate-pulse font-medium">جاري تحليل القرار من قبل الباحث والناقد والاستراتيجي...</p>
                     ) : (
-                      <p className="text-sm text-indigo-700 leading-relaxed font-semibold">{d.criticism}</p>
+                      <div className="text-sm text-indigo-900 leading-relaxed space-y-3">
+                        <div className="font-semibold">{d.criticism?.split('\n')[0]}</div>
+                        {d.risks && d.risks.length > 0 && (
+                          <div className="mt-2">
+                            <span className="font-bold text-rose-700 text-xs uppercase block mb-1">المخاطر المحتملة:</span>
+                            <ul className="list-disc list-inside text-rose-800 text-xs space-y-1">
+                              {d.risks.map((r, i) => <li key={i}>{r}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {d.expectedOutcomes && d.expectedOutcomes.length > 0 && (
+                          <div className="mt-2 text-indigo-800 bg-white/40 p-2 rounded-lg border border-indigo-100/50">
+                            <span className="font-bold text-xs uppercase block mb-1">النتائج المتوقعة (Outcomes):</span>
+                            <ul className="list-disc list-inside text-xs space-y-1">
+                              {d.expectedOutcomes.map((r, i) => <li key={i}>{r}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {d.criticism?.includes('CounterArguments') || d.criticism?.includes('Risk Level') ? (
+                          <div className="mt-2 text-xs text-indigo-600 whitespace-pre-wrap font-medium">
+                            {d.criticism.substring(d.criticism.indexOf('Risk Level'))}
+                          </div>
+                        ) : null}
+                      </div>
                     )}
                   </div>
                 )}

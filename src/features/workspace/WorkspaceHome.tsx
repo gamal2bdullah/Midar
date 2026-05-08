@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, Trash2, BrainCircuit } from 'lucide-react';
+import { Target, Trash2, BrainCircuit, LogOut, User } from 'lucide-react';
 import { Project } from '../../hooks/useStorage';
 import { GlassCard } from '../../components/ui/shared';
+import { useAuth } from '../../context/AuthContext';
 
 // Extracted from App.tsx HomeView
 export const WorkspaceHome = ({ projects, loading, createProject, openProject, deleteProject }: any) => {
   const [newProjectName, setNewProjectName] = useState('');
+  const { user, logout } = useAuth();
 
   const launchNew = async () => {
     if(!newProjectName) return;
@@ -18,6 +20,27 @@ export const WorkspaceHome = ({ projects, loading, createProject, openProject, d
 
   return (
     <div className="min-h-screen bg-transparent pb-24 text-right" dir="rtl">
+      
+      {/* Top Navigation */}
+      <div className="w-full flex justify-between items-center px-6 py-4 absolute top-0 z-50">
+        <div className="text-xl font-black font-serif text-slate-800 tracking-tighter">مِدار</div>
+        {user && (
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-white/50 backdrop-blur-md border border-slate-200 px-3 py-1.5 rounded-full text-sm font-medium text-slate-700">
+              <User className="w-4 h-4 text-indigo-500" />
+              <span>{user.displayName || user.email}</span>
+            </div>
+            <button 
+              onClick={logout}
+              className="text-slate-400 hover:text-rose-500 transition-colors p-2 bg-white/50 hover:bg-rose-50 rounded-full border border-slate-200 hover:border-rose-200"
+              title="تسجيل الخروج"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+
       <header className="pt-24 pb-16 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-gray-100 opacity-50 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
         <div className="container mx-auto px-6 relative z-10 text-center space-y-6">

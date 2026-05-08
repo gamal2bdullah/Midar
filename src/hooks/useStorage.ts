@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import localforage from 'localforage';
+import { SyncEngine } from '../lib/sync/syncEngine';
 
 export interface Assumption {
   id: string;
@@ -90,6 +91,9 @@ export interface Decision {
   timestamp: number;
   criticism?: string;
   linkedEvidenceIds?: string[];
+  alternatives?: string[];
+  risks?: string[];
+  expectedOutcomes?: string[];
 }
 
 export interface Experiment {
@@ -242,7 +246,7 @@ export function useProjects() {
       history: [{ action: 'ProjectCreated', timestamp: Date.now() }],
       overallScore: 0
     };
-    await localforage.setItem(newProj.id, newProj);
+    await SyncEngine.syncProject(newProj);
     await initDB();
     return newProj.id;
   }
@@ -256,7 +260,7 @@ export function useProjects() {
         updated.history = [...(existing.history || []), { action: actionNames, timestamp: Date.now() }];
       }
       
-      await localforage.setItem(id, updated);
+      await SyncEngine.syncProject(updated);
       
       // Update local state without reloading everything
       setProjects(prev => prev.map(p => p.id === id ? updated : p));
