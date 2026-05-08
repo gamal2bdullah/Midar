@@ -1,26 +1,35 @@
 import React, { useState } from 'react';
 import { Project, Experiment } from '../../hooks/useStorage';
 import { GlassCard, PrimaryButton } from '../../components/ui/shared';
-import { Beaker, Play, CheckCircle2, AlertOctagon, Edit3 } from 'lucide-react';
+import { Beaker, Play, CheckCircle2, AlertOctagon, Edit3, Target } from 'lucide-react';
+import { GeminiOrchestrator } from '../../lib/ai-engine';
 
 export const ExperimentBacklog = ({ project, updateProject }: { project: Project, updateProject: any }) => {
   const [name, setName] = useState('');
   const [hypothesis, setHypothesis] = useState('');
   const [metric, setMetric] = useState('');
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
 
-  const add = () => {
+  const add = async () => {
     if(!name || !hypothesis || !metric) return;
+    const newId = `exp_${Date.now()}`;
     const newExp: Experiment = {
-      id: `exp_${Date.now()}`,
+      id: newId,
       name,
       hypothesis,
       metric,
       status: 'planned'
     };
-    updateProject(project.id, { experiments: [newExp, ...(project.experiments || [])] });
-    setName('');
-    setHypothesis('');
-    setMetric('');
+    
+    const currentExps = [newExp, ...(project.experiments || [])];
+    updateProject(project.id, { experiments: currentExps });
+    setName(''); setHypothesis(''); setMetric('');
+
+    setAnalyzingId(newId);
+    const criticism = await GeminiOrchestrator.assessExperiment(newExp.hypothesis, newExp.metric);
+    const finalExps = currentExps.map(e => e.id === newId ? { ...e, criticism } : e);
+    updateProject(project.id, { experiments: finalExps });
+    setAnalyzingId(null);
   };
 
   const updateStatus = (id: string, status: 'planned' | 'running' | 'completed' | 'failed') => {
@@ -107,6 +116,21 @@ export const ExperimentBacklog = ({ project, updateProject }: { project: Project
                 <span className="font-bold text-slate-400 text-xs uppercase tracking-wider block mb-1">الفرضية:</span>
                 {exp.hypothesis}
               </div>
+
+              {(exp.criticism || analyzingId === exp.id) && (
+                <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-3 mt-3 relative">
+                   <div className="flex items-center gap-1.5 mb-1 text-orange-700 font-bold text-xs uppercase tracking-wider">
+                     <Target className="w-3.5 h-3.5" />
+                     مُدقق جودة القياس (AI)
+                   </div>
+                   {analyzingId === exp.id ? (
+                      <p className="text-orange-500 text-sm animate-pulse">جاري تقييم متانة المقياس (Metric)...</p>
+                   ) : (
+                      <p className="text-orange-800 text-sm font-medium">{exp.criticism}</p>
+                   )}
+                </div>
+              )}
+
               {(exp.status === 'completed' || exp.status === 'failed' || exp.result) && (
                 <div className="pt-2">
                   <span className="font-bold text-slate-400 text-xs uppercase tracking-wider block mb-1">النتيجة والملاحظات:</span>

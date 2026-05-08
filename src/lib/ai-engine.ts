@@ -58,10 +58,9 @@ export class GeminiOrchestrator {
         You are an elite Staff Engineer / Product Critic.
         Review this pending decision: "${decisionText}"
         Rationale: "${rationale}"
-        Project Context: "${projectContext}"
+        Project Context & Evidence Base: "${projectContext}"
 
-        Provide a very brief (2 sentences max) sharp critique playing devil's advocate. What is the biggest hidden risk of this decision?
-        Respond in Arabic.
+        Provide a very brief (2-3 sentences max) sharp critique playing devil's advocate. Expose assumptions. If the decision contradicts the "Evidence Base" (or if there is no evidence), aggressively highlight that lack of traceability. What is the biggest hidden risk? Output in Arabic.
       `;
       const response = await gemini.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -70,6 +69,49 @@ export class GeminiOrchestrator {
       return response.text || "قد يكون هذا القرار متسرعاً ويحتاج لتدقيق إضافي.";
     } catch(e) {
       return "لا يمكن تقييم القرار حالياً بسبب انقطاع الاتصال بخادم الذكاء الاصطناعي.";
+    }
+  }
+
+  static async assessExperiment(hypothesis: string, metric: string): Promise<string> {
+    if (!gemini) return "تقييم التجربة معطل لغياب مفتاح API.";
+    try {
+      const prompt = `
+        You are an elite Growth Hacker / Experimentation Lead.
+        Review this experiment:
+        Hypothesis: "${hypothesis}"
+        Metric of Success: "${metric}"
+
+        Provide a very brief (2 sentences) critique on whether this metric actually proves the hypothesis or if it's a vanity metric. If it's weak, suggest a harder metric. Output in Arabic.
+      `;
+      const response = await gemini.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+      });
+      return response.text || "لا يمكن استخلاص تقييم الآن.";
+    } catch(e) {
+      return "تعذر تقييم التجربة.";
+    }
+  }
+
+  static async analyzeEvidence(content: string, context: string): Promise<string> {
+    if (!gemini) {
+      return "التحليل الذكي معطل لعدم توفر مفتاح API.";
+    }
+    try {
+      const prompt = `
+        You are an elite Intelligence Analyst processing raw evidence for a strategic project.
+        Evidence: "${content}"
+        Project Context: "${context}"
+
+        Provide a very brief (2 sentences) insight on how this evidence validates or invalidates the core project context. Be sharp and critical. Output in Arabic.
+      `;
+      const response = await gemini.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+      });
+      return response.text || "تم تسجيل الدليل بدون تعليق تحليلي إضافي.";
+    } catch(e) {
+      return "فشل التحليل الذكي للبيانات.";
     }
   }
 

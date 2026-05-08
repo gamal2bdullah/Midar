@@ -9,12 +9,28 @@ export const EvidenceBoard = ({ project, updateProject }: { project: Project, up
   const [source, setSource] = useState('');
   const [type, setType] = useState<'data' | 'quote' | 'observation' | 'research'>('data');
   const [confidence, setConfidence] = useState(50);
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
 
-  const add = () => {
+  const add = async () => {
     if(!content || !source) return;
-    const newEvidence: Evidence = { id: `ev_${Date.now()}`, content, source, type, confidence };
-    updateProject(project.id, { evidence: [newEvidence, ...(project.evidence || [])] });
+    const newId = `ev_${Date.now()}`;
+    const newEvidence: Evidence = { id: newId, content, source, type, confidence };
+    
+    // Optistic update
+    const currentEvidence = [newEvidence, ...(project.evidence || [])];
+    updateProject(project.id, { evidence: currentEvidence });
     setContent(''); setSource(''); setConfidence(50);
+
+    // AI Analysis
+    setAnalyzingId(newId);
+    const context = project.problem.text || project.name;
+    const { GeminiOrchestrator } = await import('../../lib/ai-engine');
+    const analysis = await GeminiOrchestrator.analyzeEvidence(newEvidence.content, context);
+    
+    // Finalize update
+    const finalEvidence = currentEvidence.map(e => e.id === newId ? { ...e, aiAnalysis: analysis } : e);
+    updateProject(project.id, { evidence: finalEvidence });
+    setAnalyzingId(null);
   };
 
   const remove = (id: string) => {
@@ -102,6 +118,20 @@ export const EvidenceBoard = ({ project, updateProject }: { project: Project, up
               </div>
               
               <p className="text-gray-900 font-serif leading-relaxed mb-4 text-lg">"{e.content}"</p>
+              
+              {(e.aiAnalysis || analyzingId === e.id) && (
+                 <div className="mb-4 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
+                    <div className="flex items-center gap-1.5 mb-1 text-indigo-700 font-bold text-xs uppercase tracking-wider">
+                       <Activity className="w-3.5 h-3.5" />
+                       الرؤية التحليلية
+                    </div>
+                    {analyzingId === e.id ? (
+                      <p className="text-indigo-500 text-sm animate-pulse">جاري ربط واستخلاص الرؤى...</p>
+                    ) : (
+                      <p className="text-indigo-800 text-sm">{e.aiAnalysis}</p>
+                    )}
+                 </div>
+              )}
               
               <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50/50 p-2 rounded-lg border border-blue-50 font-sans">
                  <Link className="w-3.5 h-3.5" />

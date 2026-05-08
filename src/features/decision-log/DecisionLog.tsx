@@ -29,7 +29,11 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
 
     // Generate critique asynchronously
     setIsCritiquing(newId);
-    const context = project.problem.text || project.name;
+    
+    // Inject available evidence to give AI a sense of traceability
+    const evidenceText = (project.evidence || []).map(e => `- ${e.type}: ${e.content}`).join('\n');
+    const context = `Problem: ${project.problem.text || project.name}\nEvidence Base:\n${evidenceText || 'No hard evidence available.'}`;
+    
     const critique = await GeminiOrchestrator.critiqueDecision(newDecision.title, newDecision.rationale, context);
     
     // Update the specific decision with critique

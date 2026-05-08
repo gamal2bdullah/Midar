@@ -33,6 +33,7 @@ export interface Idea {
   why: string;
   pressureTest?: string;
   versionId?: string; // For comparing ideas
+  linkedEvidenceIds?: string[];
 }
 
 export interface ContrastReview {
@@ -70,6 +71,7 @@ export interface Evidence {
   content: string;
   source: string;
   confidence: number;
+  aiAnalysis?: string;
 }
 
 export interface Comment {
@@ -87,6 +89,7 @@ export interface Decision {
   status: 'pending' | 'approved' | 'rejected';
   timestamp: number;
   criticism?: string;
+  linkedEvidenceIds?: string[];
 }
 
 export interface Experiment {
@@ -96,6 +99,8 @@ export interface Experiment {
   metric: string;
   status: 'planned' | 'running' | 'completed' | 'failed';
   result?: string;
+  criticism?: string;
+  linkedEvidenceIds?: string[];
 }
 
 export interface Project {
