@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { auth, googleProvider, db } from '../lib/firebase';
+import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 interface User {
   uid: string;
   email: string | null;
   displayName: string | null;
-  role: 'owner' | 'editor' | 'viewer';
+  role: 'owner' | 'editor' | 'viewer'; // Will map all to owner for now to fit schema
 }
 
 interface AuthContextType {
@@ -28,29 +31,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Scaffold: In the future, this is where Firebase onAuthStateChanged would go.
-    // Preserving local-first behavior for now, so we simulate a local session or no session.
-    const storedUser = localStorage.getItem('midar_auth_v1');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          role: 'owner', // Defaulting to owner for own documents
+        });
+        
+        // Save user to Firestore to enable resolving email to UID for sharing
+        try {
+          await setDoc(doc(db, 'users', firebaseUser.uid), {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            lastSeen: Date.now()
+          }, { merge: true });
+        } catch (err) {
+          console.error("Failed to update user profile", err);
+        }
+      } else {
         setUser(null);
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    });
+    return unsubscribe;
   }, []);
 
   const login = async () => {
-    // Scaffold: Replace with Google Popup Auth or similar
-    const fakeUser: User = { uid: 'local-123', email: 'guest@midar', displayName: 'Local User', role: 'owner' };
-    setUser(fakeUser);
-    localStorage.setItem('midar_auth_v1', JSON.stringify(fakeUser));
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const logout = async () => {
-    setUser(null);
-    localStorage.removeItem('midar_auth_v1');
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (

@@ -1,0 +1,36 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "A project object representing a collaborative space.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" },
+        "version": { "type": "number" },
+        "stakeholders": { "type": "array" },
+        "problem": { "type": "object" },
+        "ideas": { "type": "array" },
+        "contrastReviews": { "type": "array" },
+        "assumptions": { "type": "array" },
+        "contradictions": { "type": "array" },
+        "evidence": { "type": "array" },
+        "comments": { "type": "array" },
+        "decisions": { "type": "array" },
+        "experiments": { "type": "array" },
+        "history": { "type": "array" },
+        "overallScore": { "type": "number" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["id", "name", "ownerId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": { "$ref": "Project" },
+      "description": "Collection of projects"
+    }
+  }
+}

@@ -14,19 +14,12 @@ async function startServer() {
   // AI Route
   app.post("/api/ai/generate", async (req, res) => {
     try {
-      let apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-      if (apiKey) apiKey = apiKey.replace(/^["']|["']$/g, '').trim();
-      
-      if (!apiKey || apiKey === "undefined") {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not set on the server." });
-      }
-      
       const { prompt, systemInstruction, responseSchema } = req.body;
       if (!prompt) {
         return res.status(400).json({ error: "Missing prompt" });
       }
 
-      const gemini = new GoogleGenAI({ apiKey });
+      const gemini = new GoogleGenAI();
       const response = await gemini.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
@@ -42,7 +35,7 @@ async function startServer() {
       console.error("AI Error:", error);
       const errorMsg = error.message || "";
       if (errorMsg.includes("API_KEY_INVALID") || errorMsg.includes("API key not valid")) {
-        return res.status(403).json({ error: "مفتاح Gemini API غير صالح. يرجى التأكد من إضافة مفتاح صحيح." });
+        return res.status(400).json({ error: "مفتاح Gemini API غير صالح. يرجى التأكد من إضافة مفتاح صحيح." });
       }
       res.status(500).json({ error: errorMsg || "Failed to generate AI content" });
     }
