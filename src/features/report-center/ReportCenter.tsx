@@ -1,12 +1,3 @@
-import React, { useRef, useState } from 'react';
-import { Project } from '../../hooks/useStorage';
-import { InsightEngine } from '../../lib/analysis/InsightEngine';
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { GlassCard } from '../../components/ui/shared';
-import { FileDown, Target, Lightbulb, AlertTriangle, Coins, Target as TargetIcon } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
-
 import React, { useRef, useState, useEffect } from 'react';
 import { Project } from '../../hooks/useStorage';
 import { InsightEngine } from '../../lib/analysis/InsightEngine';

@@ -12,7 +12,7 @@ export const ExecutiveDashboard = ({ project, updateProject }: { project: Projec
   const stats = [
     { label: 'أصحاب مصلحة', value: project.stakeholders?.length || 0, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { label: 'أفكار مقترحة', value: project.ideas?.length || 0, icon: Lightbulb, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'مواقف وإشكاليات', value: project.problems?.length || 0, icon: Target, color: 'text-rose-600', bg: 'bg-rose-50' },
+    { label: 'إشكاليات', value: project.problem?.text ? 1 : 0, icon: Target, color: 'text-rose-600', bg: 'bg-rose-50' },
     { label: 'تجارب نشطة', value: project.experiments?.filter(e=>e.status==='running')?.length || 0, icon: Beaker, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: 'قرارات مقترحة', value: project.decisions?.filter(d=>d.status==='pending')?.length || 0, icon: ShieldAlert, color: 'text-orange-600', bg: 'bg-orange-50' },
   ];
@@ -52,13 +52,15 @@ export const ExecutiveDashboard = ({ project, updateProject }: { project: Projec
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
          {stats.map((s, i) => (
-           <GlassCard key={i} className="p-4 flex flex-col items-center justify-center text-center gap-2">
-              <div className={`w-10 h-10 rounded-full ${s.bg} ${s.color} flex items-center justify-center mb-1`}>
-                <s.icon className="w-5 h-5" />
-              </div>
-              <div className="text-2xl font-black text-slate-800">{s.value}</div>
-              <div className="text-[10px] font-bold text-slate-500 uppercase">{s.label}</div>
-           </GlassCard>
+           <div key={i}>
+             <GlassCard className="p-4 flex flex-col items-center justify-center text-center gap-2 h-full">
+                <div className={`w-10 h-10 rounded-full ${s.bg} ${s.color} flex items-center justify-center mb-1`}>
+                  <s.icon className="w-5 h-5" />
+                </div>
+                <div className="text-2xl font-black text-slate-800">{s.value}</div>
+                <div className="text-[10px] font-bold text-slate-500 uppercase">{s.label}</div>
+             </GlassCard>
+           </div>
          ))}
       </div>
 

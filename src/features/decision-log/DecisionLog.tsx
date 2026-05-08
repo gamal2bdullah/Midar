@@ -1,24 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Project, Decision } from '../../hooks/useStorage';
 import { GlassCard, PrimaryButton } from '../../components/ui/shared';
-import { Check, X, Clock, ShieldAlert } from 'lucide-react';
+import { Check, X, Clock, ShieldAlert, Sparkles } from 'lucide-react';
+import { GeminiOrchestrator } from '../../lib/ai-engine';
 
 export const DecisionLog = ({ project, updateProject }: { project: Project, updateProject: any }) => {
   const [title, setTitle] = useState('');
   const [rationale, setRationale] = useState('');
+  const [isCritiquing, setIsCritiquing] = useState<string | null>(null);
 
-  const add = () => {
+  const add = async () => {
     if(!title || !rationale) return;
+    const newId = `dec_${Date.now()}`;
     const newDecision: Decision = {
-      id: `dec_${Date.now()}`,
+      id: newId,
       title,
       rationale,
       status: 'pending',
       timestamp: Date.now()
     };
-    updateProject(project.id, { decisions: [newDecision, ...(project.decisions || [])] });
+    
+    // Optimistic update
+    const currentDecisions = [newDecision, ...(project.decisions || [])];
+    updateProject(project.id, { decisions: currentDecisions });
+    
     setTitle('');
     setRationale('');
+
+    // Generate critique asynchronously
+    setIsCritiquing(newId);
+    const context = project.problem.text || project.name;
+    const critique = await GeminiOrchestrator.critiqueDecision(newDecision.title, newDecision.rationale, context);
+    
+    // Update the specific decision with critique
+    const updatedDecisions = currentDecisions.map(d => d.id === newId ? { ...d, criticism: critique } : d);
+    updateProject(project.id, { decisions: updatedDecisions });
+    setIsCritiquing(null);
   };
 
   const updateDecisionStatus = (id: string, status: 'approved' | 'rejected') => {
@@ -72,6 +89,21 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
                   {d.status === 'rejected' && <span className="text-[10px] uppercase font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-full border border-rose-100 flex items-center gap-1"><X className="w-3 h-3"/> مستبعد</span>}
                 </div>
                 <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">{d.rationale}</p>
+                
+                {(d.criticism || isCritiquing === d.id) && (
+                  <div className="mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl relative">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Sparkles className="w-4 h-4 text-indigo-500" />
+                      <span className="text-xs font-bold text-indigo-800">نقد الذكاء الاصطناعي (Devil's Advocate)</span>
+                    </div>
+                    {isCritiquing === d.id ? (
+                      <p className="text-sm text-indigo-500 animate-pulse font-medium">جاري فحص المخاطر الخفية للقرار...</p>
+                    ) : (
+                      <p className="text-sm text-indigo-700 leading-relaxed font-semibold">{d.criticism}</p>
+                    )}
+                  </div>
+                )}
+                
                 <div className="text-xs text-slate-400 font-mono flex items-center gap-1 mt-2">
                    تاريخ: {new Date(d.timestamp).toLocaleDateString()}
                 </div>

@@ -86,6 +86,7 @@ export interface Decision {
   rationale: string;
   status: 'pending' | 'approved' | 'rejected';
   timestamp: number;
+  criticism?: string;
 }
 
 export interface Experiment {

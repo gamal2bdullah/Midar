@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Project } from '../../hooks/useStorage';
 import { GlassCard, PrimaryButton } from '../../components/ui/shared';
 import { AlertTriangle, Info, Zap, ShieldAlert, Crosshair } from 'lucide-react';
-import { DeepEngine } from '../../lib/ai-engine';
+import { GeminiOrchestrator, DeepEngine } from '../../lib/ai-engine';
 
 export const ScenarioSimulator = ({ project }: { project: Project }) => {
   const [loading, setLoading] = useState(false);
@@ -10,38 +10,31 @@ export const ScenarioSimulator = ({ project }: { project: Project }) => {
 
   const generateScenarios = async () => {
     setLoading(true);
-    // Simulate thinking/AI generation
-    const ideasText = project.ideas.map(i => i.text).join(" ");
+    const generated = await GeminiOrchestrator.simulateScenarios(project);
     
-    setTimeout(() => {
-      const generated = [];
-      if (ideasText.includes("رقمي") || ideasText.includes("تطبيق") || ideasText.includes("منص")) {
-         generated.push({
+    if (generated && generated.length > 0) {
+       setScenarios(generated);
+    } else {
+       // Fallback logic if AI fails or key is missing
+       const ideasText = project.ideas.map(i => i.text).join(" ");
+       const fallback = [];
+       if (ideasText.includes("رقمي") || ideasText.includes("تطبيق") || ideasText.includes("منص")) {
+         fallback.push({
            id: "s1",
            title: "انهيار التبني الرقمي (Digital Abandonment)",
            risk: "المستهدفون يحملون التطبيق ثم يحذفونه بعد ٣ أيام بسبب تعقيد الواجهة أو عدم وجود حافز للعودة.",
-           mitigation: "تصميم التدخلات السلوكية (Nudges) منذ اليوم الأول وبناء نسخة 'ويب خفيف' لا تتطلب تحميلاً."
+           mitigation: "تصميم التدخلات السلوكية (Nudges) منذ اليوم الأول وبناء نسخة 'ويب خفيف'."
          });
-      }
-      if (project.stakeholders.length > 0) {
-         generated.push({
-           id: "s2",
-           title: "صراع الأطراف المتضادة (Stakeholder Rebellion)",
-           risk: `الفئة (${project.stakeholders[0].name}) تشعر بأن الحل مفروض عليها من أعلى وتعيق التنفيذ بشكل سلبي.`,
-           mitigation: "إشراك قادة المجتمع المحلي في صنع القرار كـ 'سفراء للبرنامج' قبل التنفيذ."
-         });
-      }
-      
-      generated.push({
-         id: "s3",
+       }
+       fallback.push({
+         id: "s2",
          title: "الجفاف التمويلي المبكر (Premature Scaling)",
-         risk: "صرف 70% من الميزانية على بناء الحل التكنولوجي قبل تأكيد طلب السوق الفعلي (Product-Market Fit).",
-         mitigation: "استخدام منهجية MVP وبناء نموذج 'خلف الكواليس' بأدوات No-Code أولاً."
-      });
-
-      setScenarios(generated);
-      setLoading(false);
-    }, 1200);
+         risk: "صرف 70% من الميزانية على التنفيذ والحل التكنولوجي قبل تأكيد طلب السوق الفعلي.",
+         mitigation: "استخدام منهجية البناء الرشيق (MVP) واختبار المفهوم الأساسي أولاً."
+       });
+       setScenarios(fallback);
+    }
+    setLoading(false);
   };
 
   return (
@@ -66,27 +59,29 @@ export const ScenarioSimulator = ({ project }: { project: Project }) => {
       {scenarios.length > 0 && (
          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {scenarios.map((scen, idx) => (
-               <GlassCard key={scen.id} className="p-6 border-rose-100 relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-2 h-full bg-rose-500" />
-                  <div className="flex items-center gap-3 mb-4">
-                     <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-black">
-                       {idx + 1}
-                     </div>
-                     <h3 className="font-bold text-slate-900">{scen.title}</h3>
-                  </div>
-                  
-                  <div className="space-y-4">
-                     <div className="bg-rose-50/50 p-4 rounded-xl border border-rose-100 text-sm">
-                        <span className="font-bold text-rose-800 text-xs uppercase tracking-widest mb-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> السيناريو:</span>
-                        <p className="text-slate-700 leading-relaxed font-semibold">{scen.risk}</p>
-                     </div>
-                     
-                     <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 text-sm">
-                        <span className="font-bold text-emerald-800 text-xs uppercase tracking-widest mb-1 flex items-center gap-1"><Crosshair className="w-3 h-3"/> استراتيجية النجاة (Mitigation):</span>
-                        <p className="text-slate-700 leading-relaxed">{scen.mitigation}</p>
-                     </div>
-                  </div>
-               </GlassCard>
+               <div key={scen.id}>
+                 <GlassCard className="p-6 border-rose-100 relative overflow-hidden group h-full">
+                    <div className="absolute top-0 right-0 w-2 h-full bg-rose-500" />
+                    <div className="flex items-center gap-3 mb-4">
+                       <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-black">
+                         {idx + 1}
+                       </div>
+                       <h3 className="font-bold text-slate-900">{scen.title}</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                       <div className="bg-rose-50/50 p-4 rounded-xl border border-rose-100 text-sm">
+                          <span className="font-bold text-rose-800 text-xs uppercase tracking-widest mb-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> السيناريو:</span>
+                          <p className="text-slate-700 leading-relaxed font-semibold">{scen.risk}</p>
+                       </div>
+                       
+                       <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 text-sm">
+                          <span className="font-bold text-emerald-800 text-xs uppercase tracking-widest mb-1 flex items-center gap-1"><Crosshair className="w-3 h-3"/> استراتيجية النجاة (Mitigation):</span>
+                          <p className="text-slate-700 leading-relaxed">{scen.mitigation}</p>
+                       </div>
+                    </div>
+                 </GlassCard>
+               </div>
             ))}
          </div>
       )}

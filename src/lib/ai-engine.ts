@@ -12,7 +12,7 @@ env.useBrowserCache = true;
 
 let gemini: GoogleGenAI | null = null;
 try {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   if (apiKey && apiKey !== 'undefined') {
     gemini = new GoogleGenAI({ apiKey });
   }
@@ -21,6 +21,58 @@ try {
 }
 
 export class GeminiOrchestrator {
+  static async simulateScenarios(project: Project): Promise<{id: string, title: string, risk: string, mitigation: string}[]> {
+    if (!gemini) {
+      return [];
+    }
+    try {
+      const prompt = `
+        You are an elite Pre-Mortem Scenario Simulator. Given this project plan, generate 3 severe, highly specific, and realistic failure scenarios (collapse scenarios) that could destroy this project. Output MUST be valid JSON array of objects with schema:
+        [{ "id": "s1", "title": "Scenario Name", "risk": "Specific failure mechanism", "mitigation": "Unconventional survival strategy" }]
+
+        Project: ${project.name}
+        Problem: ${project.problem.text}
+        Ideas: ${project.ideas.map(i => i.text).join(' ')}
+      `;
+      const response = await gemini.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+      });
+      const text = response.text || "[]";
+      // ensure we just get the json array
+      const matches = text.match(/\\[[\\s\\S]*\\]/);
+      const jsonStr = matches ? matches[0] : "[]";
+      return JSON.parse(jsonStr) as {id: string, title: string, risk: string, mitigation: string}[];
+    } catch(e) {
+      console.warn("Scenario simulation failed:", e);
+      return [];
+    }
+  }
+
+  static async critiqueDecision(decisionText: string, rationale: string, projectContext: string): Promise<string> {
+    if (!gemini) {
+      return "الاعتماد المفرط على حدس الفريق دون أدلة قد يؤدي لمخاطر خفية.";
+    }
+    try {
+      const prompt = `
+        You are an elite Staff Engineer / Product Critic.
+        Review this pending decision: "${decisionText}"
+        Rationale: "${rationale}"
+        Project Context: "${projectContext}"
+
+        Provide a very brief (2 sentences max) sharp critique playing devil's advocate. What is the biggest hidden risk of this decision?
+        Respond in Arabic.
+      `;
+      const response = await gemini.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+      });
+      return response.text || "قد يكون هذا القرار متسرعاً ويحتاج لتدقيق إضافي.";
+    } catch(e) {
+      return "لا يمكن تقييم القرار حالياً بسبب انقطاع الاتصال بخادم الذكاء الاصطناعي.";
+    }
+  }
+
   static async synthesizeInsights(project: Project): Promise<string> {
     if (!gemini) {
       return "الذكاء الاصطناعي معطل حالياً لعدم توفر مفتاح API. يرجى توفير مفتاح Gemini لتفعيل هذه الميزة.";
@@ -38,7 +90,7 @@ export class GeminiOrchestrator {
         Stakeholders:
         ${project.stakeholders.map(s => "- " + s.name + ": " + s.need).join('\n')}
         
-        Current evidence strength: ${project.evidences?.length || 0} pieces of evidence.
+        Current evidence strength: ${project.evidence?.length || 0} pieces of evidence.
         
         Provide a 3-paragraph executive brief detailing:
         1. Core strategic tension.
