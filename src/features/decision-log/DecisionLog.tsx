@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Project, Decision } from '../../hooks/useStorage';
 import { GlassCard, PrimaryButton } from '../../components/ui/shared';
-import { Check, X, Clock, ShieldAlert, Sparkles, BrainCircuit } from 'lucide-react';
+import { Check, X, Clock, ShieldAlert, Sparkles, BrainCircuit, Database } from 'lucide-react';
 import { MultiAgentOrchestrator } from '../../lib/agents/Pipeline';
+import { EvidenceSelector } from '../../components/ui/EvidenceSelector';
 
 export const DecisionLog = ({ project, updateProject }: { project: Project, updateProject: any }) => {
   const [title, setTitle] = useState('');
   const [rationale, setRationale] = useState('');
+  const [selectedEvidence, setSelectedEvidence] = useState<string[]>([]);
   const [isCritiquing, setIsCritiquing] = useState<string | null>(null);
 
   const add = async () => {
@@ -16,6 +18,7 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
       id: newId,
       title,
       rationale,
+      linkedEvidenceIds: selectedEvidence,
       status: 'pending',
       timestamp: Date.now()
     };
@@ -26,6 +29,7 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
     
     setTitle('');
     setRationale('');
+    setSelectedEvidence([]);
 
     // Generate critique asynchronously
     setIsCritiquing(newId);
@@ -36,7 +40,7 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
       evidenceData: project.evidence
     };
     
-    const decisionTopic = `Decision: ${newDecision.title}\nRationale: ${newDecision.rationale}`;
+    const decisionTopic = `Decision: ${newDecision.title}\nRationale: ${newDecision.rationale}\nLinked Evidence: ${newDecision.linkedEvidenceIds?.map(id => project.evidence.find(e => e.id === id)?.content).join('; ')}`;
     const aiResults = await MultiAgentOrchestrator.executeDecisionPipeline(pipelineContext, decisionTopic);
     
     // Process results into decision
@@ -57,13 +61,16 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
     }
 
     if (aiResults?.research) {
-      updatedDecision.linkedEvidenceIds = aiResults.research.foundEvidence;
+      // AI found additional evidence? merge
+      const newEvs = aiResults.research.foundEvidence || [];
+      // This might not match actual evidence IDs, so we won't blindly overwrite
     }
 
     const updatedDecisions = currentDecisions.map(d => d.id === newId ? updatedDecision : d);
     updateProject(project.id, { decisions: updatedDecisions });
     setIsCritiquing(null);
   };
+
 
   const updateDecisionStatus = (id: string, status: 'approved' | 'rejected') => {
     const updated = (project.decisions || []).map(d => d.id === id ? { ...d, status } : d);
@@ -93,6 +100,11 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
             placeholder="الحيثيات والمبررات: لماذا اتخذنا هذا القرار؟ ما هي البدائل التي تم استبعادها؟"
             className="w-full text-sm bg-white border border-slate-200 outline-none rounded-xl p-3 resize-y min-h-[100px] focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all placeholder-slate-400"
           />
+          <EvidenceSelector 
+             availableEvidence={project.evidence || []} 
+             selectedIds={selectedEvidence} 
+             onChange={setSelectedEvidence} 
+          />
           <div className="flex justify-end">
             <PrimaryButton onClick={add} disabled={!title || !rationale}>توثيق القرار وتحليل AI</PrimaryButton>
           </div>
@@ -116,6 +128,20 @@ export const DecisionLog = ({ project, updateProject }: { project: Project, upda
                   {d.status === 'rejected' && <span className="text-[10px] uppercase font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-full border border-rose-100 flex items-center gap-1"><X className="w-3 h-3"/> مستبعد</span>}
                 </div>
                 <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">{d.rationale}</p>
+                {d.linkedEvidenceIds && d.linkedEvidenceIds.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {d.linkedEvidenceIds.map(eid => {
+                       const ev = project.evidence?.find(e => e.id === eid);
+                       if (!ev) return null;
+                       return (
+                         <span key={eid} className="inline-flex items-center gap-1 bg-white border border-slate-200 text-slate-500 text-[10px] px-2 py-1 rounded truncate max-w-[200px]" title={ev.content}>
+                           <Database className="w-3 h-3 text-indigo-400" />
+                           {ev.source || "مرجع"}
+                         </span>
+                       )
+                    })}
+                  </div>
+                )}
                 
                 {(d.criticism || isCritiquing === d.id) && (
                   <div className="mt-3 p-4 bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 rounded-xl relative space-y-3">

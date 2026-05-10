@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Project, Experiment } from '../../hooks/useStorage';
 import { GlassCard, PrimaryButton } from '../../components/ui/shared';
-import { Beaker, Play, CheckCircle2, AlertOctagon, Edit3, Target } from 'lucide-react';
+import { Beaker, Play, CheckCircle2, AlertOctagon, Edit3, Target, Database } from 'lucide-react';
 import { GeminiOrchestrator } from '../../lib/ai-engine';
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
 import { useDroppable } from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { EvidenceSelector } from '../../components/ui/EvidenceSelector';
 
 const Column = ({ id, title, icon: Icon, color, children, experiments }: any) => {
   const { isOver, setNodeRef } = useDroppable({ id });
@@ -27,7 +28,7 @@ const Column = ({ id, title, icon: Icon, color, children, experiments }: any) =>
   );
 };
 
-const DraggableExperiment = ({ exp, setExpResult, analyzingId }: any) => {
+const DraggableExperiment = ({ exp, setExpResult, analyzingId, evidence }: any) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: exp.id,
     data: { exp }
@@ -52,6 +53,21 @@ const DraggableExperiment = ({ exp, setExpResult, analyzingId }: any) => {
         </div>
       </div>
 
+      {exp.linkedEvidenceIds && exp.linkedEvidenceIds.length > 0 && (
+        <div className="mt-2 mb-2 flex flex-wrap gap-1.5 flex-1 w-full pointer-events-none">
+          {exp.linkedEvidenceIds.map((eid: string) => {
+             const ev = evidence?.find((e: any) => e.id === eid);
+             if (!ev) return null;
+             return (
+               <span key={eid} className="inline-flex items-center gap-1 bg-white border border-slate-200 text-slate-500 text-[10px] px-1.5 py-0.5 rounded truncate max-w-[150px]">
+                 <Database className="w-3 h-3 text-indigo-400" />
+                 {ev.source || "مرجع"}
+               </span>
+             )
+          })}
+        </div>
+      )}
+
       {(exp.status === 'completed' || exp.status === 'failed' || exp.result) && (
         <div className="pt-2 border-t border-slate-100 mt-2">
            <textarea
@@ -70,6 +86,7 @@ export const ExperimentBacklog = ({ project, updateProject }: { project: Project
   const [name, setName] = useState('');
   const [hypothesis, setHypothesis] = useState('');
   const [metric, setMetric] = useState('');
+  const [selectedEvidence, setSelectedEvidence] = useState<string[]>([]);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -81,12 +98,13 @@ export const ExperimentBacklog = ({ project, updateProject }: { project: Project
       name,
       hypothesis,
       metric,
+      linkedEvidenceIds: selectedEvidence,
       status: 'planned'
     };
     
     const currentExps = [newExp, ...(project.experiments || [])];
     updateProject(project.id, { experiments: currentExps });
-    setName(''); setHypothesis(''); setMetric('');
+    setName(''); setHypothesis(''); setMetric(''); setSelectedEvidence([]);
 
     setAnalyzingId(newId);
     const criticism = await GeminiOrchestrator.assessExperiment(newExp.hypothesis, newExp.metric);
@@ -159,6 +177,11 @@ export const ExperimentBacklog = ({ project, updateProject }: { project: Project
             placeholder="الفرضية: نحن نعتقد أن الموردين... وسنتحقق من ذلك عبر..."
             className="w-full text-sm bg-slate-50 border border-slate-200 outline-none rounded-xl p-3 resize-y min-h-[80px] focus:border-indigo-400 focus:bg-white transition-all placeholder-slate-400"
           />
+          <EvidenceSelector 
+            availableEvidence={project.evidence || []} 
+            selectedIds={selectedEvidence} 
+            onChange={setSelectedEvidence} 
+          />
           <div className="flex justify-end">
             <PrimaryButton onClick={add} disabled={!name || !hypothesis || !metric} className="bg-indigo-600 hover:bg-indigo-700">
               <Beaker className="w-4 h-4 mr-2" /> إدراج خطة تجربة
@@ -174,7 +197,7 @@ export const ExperimentBacklog = ({ project, updateProject }: { project: Project
             return (
               <Column key={col.id} id={col.id} title={col.title} icon={col.icon} color={col.color} experiments={columnExps}>
                  {columnExps.map(exp => (
-                   <DraggableExperiment key={exp.id} exp={exp} setExpResult={setExpResult} analyzingId={analyzingId} />
+                   <DraggableExperiment key={exp.id} exp={exp} setExpResult={setExpResult} analyzingId={analyzingId} evidence={project.evidence} />
                  ))}
                  {columnExps.length === 0 && <div className="text-center text-xs text-slate-400 py-6 border-2 border-dashed border-slate-200 rounded-xl bg-white/50">اسحب البطاقة إلى هنا</div>}
               </Column>
@@ -184,7 +207,7 @@ export const ExperimentBacklog = ({ project, updateProject }: { project: Project
         <DragOverlay>
            {activeExp ? (
              <div className="w-[280px] opacity-80 rotate-2 scale-105 transition-transform">
-               <DraggableExperiment exp={activeExp} setExpResult={setExpResult} analyzingId={null} />
+               <DraggableExperiment exp={activeExp} setExpResult={setExpResult} analyzingId={null} evidence={project.evidence} />
              </div>
            ) : null}
         </DragOverlay>

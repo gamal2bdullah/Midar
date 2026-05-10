@@ -13,7 +13,7 @@ env.useBrowserCache = true;
 // Direct calls removed for security. Uses proxy.
 export async function generateViaProxy(prompt: string, options?: { systemInstruction?: string, responseSchema?: any }): Promise<string> {
   try {
-    const res = await fetch('/api/ai/generate', {
+    const res = await fetch('/api/gemini-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 

@@ -12,7 +12,7 @@ async function startServer() {
   app.use(express.json());
 
   // AI Route
-  app.post("/api/ai/generate", async (req, res) => {
+  app.post("/api/gemini-proxy", async (req, res) => {
     try {
       const { prompt, systemInstruction, responseSchema } = req.body;
       if (!prompt) {

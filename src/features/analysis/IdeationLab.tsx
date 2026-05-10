@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lightbulb, Trash2, Plus, BrainCircuit, Activity, Target, Users } from 'lucide-react';
+import { Lightbulb, Trash2, Plus, BrainCircuit, Activity, Target, Users, Database } from 'lucide-react';
 import { Project, Idea } from '../../hooks/useStorage';
 import { DeepEngine, scoreIdea } from '../../lib/ai-engine';
 import { PrimaryButton, cn } from '../../components/ui/shared';
+import { EvidenceSelector } from '../../components/ui/EvidenceSelector';
 
 export const IdeationLab = ({ project, updateProject }: { project: Project, updateProject: any }) => {
   const [newIdea, setNewIdea] = useState('');
+  const [selectedEvidence, setSelectedEvidence] = useState<string[]>([]);
   const [isSimulating, setIsSimulating] = useState<string | null>(null);
 
   const add = () => {
     if(!newIdea) return;
     const scored = scoreIdea(newIdea);
-    const idea: Idea = { id: `id_${Date.now()}`, text: newIdea, score: scored.score, why: scored.why };
+    const idea: Idea = { id: `id_${Date.now()}`, text: newIdea, score: scored.score, why: scored.why, linkedEvidenceIds: selectedEvidence };
     updateProject(project.id, { ideas: [idea, ...project.ideas] });
     setNewIdea('');
+    setSelectedEvidence([]);
   };
 
   const remove = (id: string) => updateProject(project.id, { ideas: project.ideas.filter(i => i.id !== id) });
@@ -73,15 +76,23 @@ export const IdeationLab = ({ project, updateProject }: { project: Project, upda
         <p className="text-gray-500 font-sans text-sm leading-relaxed">اطرح أفكارك هنا. سيقوم مِدار بتقييمها واختبارها عبر محاكاة أصوات الأطراف المعنية وتوجيه أسئلة ضغط لاكتشاف الثغرات وتحدي الجدوى.</p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4">
-        <input 
-          type="text" 
-          placeholder="اكتب فكرة الحل المبدئي..." 
-          className="flex-1 bg-white border border-gray-200 shadow-sm rounded-xl px-5 py-4 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400 text-lg transition-all"
-          value={newIdea} onChange={e => setNewIdea(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && add()}
+      <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4">
+          <input 
+            type="text" 
+            placeholder="اكتب فكرة الحل المبدئي..." 
+            className="flex-1 bg-gray-50 border border-gray-200 shadow-inner rounded-xl px-5 py-4 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400 text-lg transition-all"
+            value={newIdea} onChange={e => setNewIdea(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && add()}
+          />
+          <PrimaryButton onClick={add} icon={Plus} className="md:px-8 bg-blue-600 hover:bg-blue-700">دفع الفكرة</PrimaryButton>
+        </div>
+        <EvidenceSelector 
+            availableEvidence={project.evidence || []} 
+            selectedIds={selectedEvidence} 
+            onChange={setSelectedEvidence} 
+            className="mt-0"
         />
-        <PrimaryButton onClick={add} icon={Plus} className="md:px-8 bg-blue-600 hover:bg-blue-700">دفع الفكرة</PrimaryButton>
       </div>
 
       <div className="grid grid-cols-1 gap-6 pt-4">
@@ -99,10 +110,24 @@ export const IdeationLab = ({ project, updateProject }: { project: Project, upda
                 <div className="flex justify-between items-start gap-4 border-b border-gray-50 pb-4 mb-4">
                   <div className="flex-1">
                     <p className="text-xl font-bold text-gray-900 mb-2 leading-relaxed">{i.text}</p>
-                    <div className="text-sm text-gray-500 font-sans flex items-center gap-2">
+                    <div className="text-sm text-gray-500 font-sans flex items-center gap-2 mb-3">
                        <Lightbulb className="w-4 h-4 text-amber-500" />
                        سبب التميز: {i.why}
                     </div>
+                    {i.linkedEvidenceIds && i.linkedEvidenceIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {i.linkedEvidenceIds.map(eid => {
+                           const ev = project.evidence?.find(e => e.id === eid);
+                           if (!ev) return null;
+                           return (
+                             <span key={eid} className="inline-flex items-center gap-1 bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] px-2 py-1 rounded truncate max-w-[250px]" title={ev.content}>
+                               <Database className="w-3 h-3" />
+                               {ev.source || "مرجع"}
+                             </span>
+                           )
+                        })}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-2xl font-black text-blue-600 bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 flex items-center gap-2 shadow-sm">
